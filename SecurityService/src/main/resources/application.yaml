@@ -1,0 +1,27 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: SecurityService
+  registration-topic-name: registration-topic
+  login-topic-name: login-topic
+
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521:xe
+    username: ${username}
+    password: ${password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  security.oauth2.client:
+    registration:
+      google:
+        client-id: ${client-id}
+        client-secret: ${client-secret}
+
+security:
+  secret-key: dm93ZWxpZGVhZXF1aXBtZW50cG91cmNoYWlyY29tcGxleGVudGlyZW5vdGV4cGxvcmU=

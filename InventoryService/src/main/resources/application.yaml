@@ -1,0 +1,30 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: InventoryService
+
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521:xe
+    username: ${username}
+    password: ${password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        cache:
+          use_second_level_cache: true
+          region_factory_class: org.hibernate.redisson.RedissonRegionFactory
+          redisson_config: classpath:redisson.yaml
+          use_query_cache: true
+        generate_statistics: true
+        javax:
+           cache:
+              uri: classpath:redisson.yaml
+              missing_cache_strategy: create
+
+
