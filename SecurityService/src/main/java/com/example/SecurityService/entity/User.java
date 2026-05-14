@@ -21,8 +21,9 @@ public class User {
     @SequenceGenerator(name = "userSeq", sequenceName = "E_COM_USER_SEQ")
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "userSeq")
     private Integer userId;
-    @Column(unique = true)
     private String username;
+    @Column(unique = true)
+    private String email;
     private String password;
     private String providerId;
     @Enumerated(EnumType.STRING)

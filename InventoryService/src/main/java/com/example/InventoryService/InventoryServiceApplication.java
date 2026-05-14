@@ -3,20 +3,25 @@ package com.example.InventoryService;
 import com.example.InventoryService.entity.Product;
 import com.example.InventoryService.enums.ProductCategory;
 import com.example.InventoryService.repository.ProductRepository;
+import com.example.InventoryService.service.InventoryService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 import java.util.List;
 
 @SpringBootApplication
+@EnableDiscoveryClient
 public class InventoryServiceApplication implements CommandLineRunner {
 
 	private final ProductRepository productRepository;
+	private final InventoryService inventoryService;
 
-    public InventoryServiceApplication(ProductRepository productRepository) {
+	public InventoryServiceApplication(ProductRepository productRepository, InventoryService inventoryService) {
         this.productRepository = productRepository;
-    }
+		this.inventoryService = inventoryService;
+	}
 
     public static void main(String[] args) {
 		SpringApplication.run(InventoryServiceApplication.class, args);
@@ -46,5 +51,6 @@ public class InventoryServiceApplication implements CommandLineRunner {
 //				new Product(null, "Watch", ProductCategory.ACCESSORIES, 150.00, 4.4, 9),
 //				new Product(null, "Sunglasses", ProductCategory.ACCESSORIES, 80.00, 4.3, 14)
 //		));
+
 	}
 }

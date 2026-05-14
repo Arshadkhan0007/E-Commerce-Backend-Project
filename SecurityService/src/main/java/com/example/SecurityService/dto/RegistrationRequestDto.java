@@ -12,6 +12,7 @@ import java.util.Set;
 public class RegistrationRequestDto {
 
     private String username;
+    private String email;
     private String password;
     private Set<String> roles;
 

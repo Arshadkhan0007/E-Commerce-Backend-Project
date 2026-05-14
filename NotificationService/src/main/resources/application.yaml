@@ -5,6 +5,8 @@ spring:
   application:
     name: NotificationService
 
+  registration-topic-name: "registration-topic"
+
   mail:
     host: smtp.gmail.com
     port: 587

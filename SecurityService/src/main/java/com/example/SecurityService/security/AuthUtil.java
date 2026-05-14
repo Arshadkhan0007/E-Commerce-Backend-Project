@@ -29,7 +29,11 @@ public class AuthUtil {
         return providerId;
     }
 
-    public String determineUsernameFromOAuth2User(OAuth2User oAuth2User, String registrationId, String providerId) {
+    public String determineUsernameFromOAuth2User(OAuth2User oAuth2User) {
+        return oAuth2User.getAttribute("name");
+    }
+
+    public String determineEmailFromOAuth2User(OAuth2User oAuth2User, String registrationId, String providerId) {
         String email = oAuth2User.getAttribute("email");
         if(email != null && !email.isBlank()) {
             return email;

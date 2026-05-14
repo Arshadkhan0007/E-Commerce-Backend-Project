@@ -1,0 +1,36 @@
+server:
+  port: 8093
+
+spring:
+  application:
+    name: ORDER-SERVICE
+
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521:xe
+    username: ${username}
+    password: ${password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  temporal:
+    connection:
+      target: localhost:7233
+    namespace: default
+    workers:
+      - task-queue: ORDER_TASK_QUEUE
+        name: order-worker
+        workflow-thread-pool-size: 100
+        activity-thread-pool-size: 200
+
+    workers-auto-discovery:
+      packages: com.example.OrderService
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8090/eureka/
+
+inventory-base-url: http://INVENTORY-SERVICE/api/inventory/

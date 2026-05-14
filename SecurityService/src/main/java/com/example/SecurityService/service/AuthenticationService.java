@@ -3,6 +3,7 @@ package com.example.SecurityService.service;
 import com.example.SecurityService.dto.LoginRequestDto;
 import com.example.SecurityService.dto.LoginResponseDto;
 import com.example.SecurityService.dto.RegistrationRequestDto;
+import com.example.SecurityService.dto.UserRegistrationMessageDto;
 import com.example.SecurityService.entity.User;
 import com.example.SecurityService.enums.ProviderType;
 import com.example.SecurityService.enums.TokenType;
@@ -41,9 +42,8 @@ public class AuthenticationService {
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService customUserDetailsService;
     private final AuthUtil authUtil;
-    private final KafkaTemplate kafkaTemplate;
+    private final KafkaTemplate<String, UserRegistrationMessageDto> kafkaTemplate;
     private final String registrationTopicName;
-    private final String loginTopicName;
 
     public AuthenticationService(
             UserRepository userRepository,
@@ -53,9 +53,9 @@ public class AuthenticationService {
             JwtUtil jwtUtil,
             CustomUserDetailsService customUserDetailsService,
             AuthUtil authUtil,
-            KafkaTemplate kafkaTemplate,
-            @Value("${spring.registration-topic-name}") String registrationTopicName,
-            @Value("${spring.login-topic-name}") String loginTopicName) {
+            KafkaTemplate<String, UserRegistrationMessageDto> kafkaTemplate,
+            @Value("${spring.registration-topic-name}") String registrationTopicName
+    ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -65,7 +65,6 @@ public class AuthenticationService {
         this.authUtil = authUtil;
         this.kafkaTemplate = kafkaTemplate;
         this.registrationTopicName = registrationTopicName;
-        this.loginTopicName = loginTopicName;
     }
 
     public void register(RegistrationRequestDto requestDto) {
@@ -74,11 +73,14 @@ public class AuthenticationService {
 
     private User registerInternal(RegistrationRequestDto requestDto, ProviderType providerType, String providerId) {
 
-        if(userRepository.findByUsername(requestDto.getUsername()).isPresent())
+        log.info("Registering User");
+
+        if(userRepository.findByEmail(requestDto.getUsername()).isPresent())
             throw new AccountConflictException("User has already registered with this email");
 
         User user = User.builder()
                 .username(requestDto.getUsername())
+                .email(requestDto.getEmail())
                 .providerType(providerType)
                 .providerId(providerId)
                 .roleSet(requestDto.getRoles().stream()
@@ -91,7 +93,11 @@ public class AuthenticationService {
             user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
         }
 
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(registrationTopicName, user.getUserId(), user.getUsername());
+        // Sending kafka event
+        CompletableFuture<SendResult<String, UserRegistrationMessageDto>> future = kafkaTemplate.send(
+                registrationTopicName,
+                user.getEmail(),
+                new UserRegistrationMessageDto(user.getUsername(), user.getEmail(), user.getProviderType().name()));
 
         future.whenComplete((result, ex) -> {
             if(ex == null) {
@@ -106,19 +112,9 @@ public class AuthenticationService {
 
     public LoginResponseDto login(LoginRequestDto requestDto) {
         Authentication authenticate = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(requestDto.getUsername(), requestDto.getPassword())
+                new UsernamePasswordAuthenticationToken(requestDto.getEmail(), requestDto.getPassword())
         );
         UserDetails userDetails = (UserDetails) authenticate.getPrincipal();
-
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(loginTopicName, requestDto.getUsername(), requestDto.getUsername());
-
-        future.whenComplete((result, ex) -> {
-            if(ex == null) {
-                System.out.printf("Message has been published successfully | Data: %s | Partition: %s | Offset: %s%n", result.getProducerRecord().value(), result.getRecordMetadata().partition(), result.getRecordMetadata().offset());
-            } else {
-                System.out.printf("Unable to send message, Reason: %s%n", ex.getMessage());
-            }
-        });
 
         return new LoginResponseDto(
                 jwtUtil.generateAccessToken(userDetails),
@@ -131,29 +127,20 @@ public class AuthenticationService {
         ProviderType providerType = authUtil.getProviderTypeFromRegistrationId(registrationId);
         String providerId = authUtil.determineProviderIdFromOAuth2User(oAuth2User, registrationId);
         String oAuthEmail = oAuth2User.getAttribute("email");
+        String oAuthUsername = oAuth2User.getAttribute("name");
 
         User userByProvider = userRepository.findByProviderTypeAndProviderId(providerType, providerId).orElse(null);
-        User userByEmail = userRepository.findByUsername(oAuthEmail).orElse(null);
+        User userByEmail = userRepository.findByEmail(oAuthEmail).orElse(null);
 
         User finalUser;
 
         if(userByProvider == null) {
             finalUser = handleNewOAuthUser(oAuth2User, registrationId, providerType, providerId, userByEmail);
         } else {
-            finalUser = handleExistingOAuthUser(userByProvider, oAuthEmail, userByEmail);
+            finalUser = handleExistingOAuthUser(userByProvider, oAuthEmail, oAuthUsername, userByEmail);
         }
 
-        UserDetails userDetails = customUserDetailsService.loadUserByUsername(finalUser.getUsername());
-
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(loginTopicName, userDetails.getUsername(), userDetails.getUsername());
-
-        future.whenComplete((result, ex) -> {
-            if(ex == null) {
-                System.out.printf("Message has been published successfully | Data: %s | Partition: %s | Offset: %s%n", result.getProducerRecord().value(), result.getRecordMetadata().partition(), result.getRecordMetadata().offset());
-            } else {
-                System.out.printf("Unable to send message, Reason: %s%n", ex.getMessage());
-            }
-        });
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(finalUser.getEmail());
 
         return new LoginResponseDto(
                 jwtUtil.generateAccessToken(userDetails),
@@ -165,12 +152,13 @@ public class AuthenticationService {
     private User handleNewOAuthUser(OAuth2User oAuth2User, String registrationId, ProviderType providerType, String providerId, User userByEmail) {
         if (userByEmail != null) throw new AccountConflictException("Email is already registered via: " + userByEmail.getProviderType());
 
-        String username= authUtil.determineUsernameFromOAuth2User(oAuth2User, registrationId, providerId);
-        RegistrationRequestDto requestDto = new RegistrationRequestDto(username, null, Set.of("ROLE_USER"));
+        String email = authUtil.determineEmailFromOAuth2User(oAuth2User, registrationId, providerId);
+        String username = authUtil.determineUsernameFromOAuth2User(oAuth2User);
+        RegistrationRequestDto requestDto = new RegistrationRequestDto(username, email, null, Set.of("ROLE_USER"));
         return registerInternal(requestDto, providerType, providerId);
     }
 
-    private User handleExistingOAuthUser(User userByProvider, String oAuthEmail, User userByEmail) {
+    private User handleExistingOAuthUser(User userByProvider, String oAuthEmail, String oAuthUsername, User userByEmail) {
         if(oAuthEmail == null || oAuthEmail.isBlank() || oAuthEmail.equals(userByProvider.getUsername())) {
             return userByProvider;
         }
@@ -179,7 +167,8 @@ public class AuthenticationService {
             throw new AccountConflictException("Your provider email changed, but the new email is already in use.");
         }
 
-        userByProvider.setUsername(oAuthEmail);
+        userByProvider.setUsername(oAuthUsername);
+        userByProvider.setEmail(oAuthEmail);
         return userRepository.save(userByProvider);
     }
 

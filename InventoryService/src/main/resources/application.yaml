@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: InventoryService
+    name: INVENTORY-SERVICE
 
   datasource:
     url: jdbc:oracle:thin:@localhost:1521:xe
@@ -26,5 +26,10 @@ spring:
            cache:
               uri: classpath:redisson.yaml
               missing_cache_strategy: create
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8090/eureka/
 
 

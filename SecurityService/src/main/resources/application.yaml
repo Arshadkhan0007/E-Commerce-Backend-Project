@@ -4,8 +4,8 @@ server:
 spring:
   application:
     name: SecurityService
-  registration-topic-name: registration-topic
-  login-topic-name: login-topic
+
+  registration-topic-name: "registration-topic"
 
   datasource:
     url: jdbc:oracle:thin:@localhost:1521:xe
@@ -14,7 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: true
 
   security.oauth2.client:
