@@ -1,6 +1,7 @@
 package com.example.OrderService.exception;
 
 import com.example.OrderService.response.ErrorResponseDto;
+import io.temporal.client.WorkflowFailedException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,5 +31,18 @@ public class GlobalExceptionHandler {
                 .build(),
                 HttpStatus.NOT_FOUND);
     }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ErrorResponseDto> handleResourceNotFound(InsufficientStockException ex, HttpServletRequest request) {
+        return new ResponseEntity<>(ErrorResponseDto.builder()
+                .timestamp(LocalDateTime.now(clock))
+                .status(HttpStatus.CONFLICT.value())
+                .errorType("INSUFFICIENT_STOCK")
+                .path(request.getRequestURI())
+                .message(ex.getMessage())
+                .build(),
+                HttpStatus.CONFLICT);
+    }
+
 
 }

@@ -8,14 +8,17 @@ import com.example.InventoryService.exception.ResourceNotFoundException;
 import com.example.InventoryService.mapper.ProductMapper;
 import com.example.InventoryService.repository.ProductRepository;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class InventoryService {
 
@@ -33,20 +36,46 @@ public class InventoryService {
 
     @Transactional
     public void updateStock(List<OrderRequestDto> orderRequestDtoList) {
-        List<Product> productList = getAllProductsById(orderRequestDtoList.stream()
-                .map(OrderRequestDto::getProductId)
-                .collect(Collectors.toSet()));
-        Set<Product> updatedProducts = productList.stream()
-                .map(product -> {
-                    int productQuantity = orderRequestDtoList.stream()
-                            .filter(orderRequestDto -> orderRequestDto.getProductId() == product.getProductId())
-                            .findFirst().get().getProductQuantity();
-                    if (product.getStock() - productQuantity < 0)
-                        throw new InsufficientStockException("Required stock: " + productQuantity + ", available stock: " + product.getStock());
-                    product.setStock(product.getStock() - productQuantity);
-                    return product;
-                }).collect(Collectors.toSet());
-        productRepository.saveAll(updatedProducts);
+
+        log.info("Updating stock");
+
+        Map<Integer, Integer> quantityMap = orderRequestDtoList.stream()
+                .collect(Collectors.toMap(
+                        OrderRequestDto::getProductId,
+                        OrderRequestDto::getQuantity));
+
+        List<Product> productList = productRepository.findAllById(quantityMap.keySet());
+
+        for(Product product : productList) {
+            int requiredQuantity = quantityMap.get(product.getProductId());
+            if (product.getStock() < requiredQuantity) {
+                throw new InsufficientStockException(
+                        "Required stock: " + requiredQuantity +
+                                ", available stock: " + product.getStock()
+                );
+            }
+            product.setStock(product.getStock() - requiredQuantity);
+        }
+    }
+
+    @Transactional
+    public void restoreInventory(List<OrderRequestDto> orderRequestDtoList) {
+
+        log.info("Restoring stock");
+
+        Map<Integer, Integer> quantityMap = orderRequestDtoList.stream()
+                .collect(Collectors.toMap(
+                        OrderRequestDto::getProductId,
+                        OrderRequestDto::getQuantity));
+
+        List<Product> productList = productRepository.findAllById(quantityMap.keySet());
+
+        for(Product product : productList) {
+            int requiredQuantity = quantityMap.get(product.getProductId());
+            product.setStock(product.getStock() + requiredQuantity);
+        }
+
+        productRepository.saveAll(productList);
     }
 
     public Product getProductById(Integer productId) {

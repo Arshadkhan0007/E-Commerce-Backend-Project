@@ -20,7 +20,7 @@ spring:
       target: localhost:7233
     namespace: default
     workers:
-      - task-queue: ORDER_TASK_QUEUE
+      - task-queue: "ORDER_TASK_QUEUE"
         name: order-worker
         workflow-thread-pool-size: 100
         activity-thread-pool-size: 200

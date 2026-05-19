@@ -24,6 +24,6 @@ public class OrderServiceApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
-
+//		System.out.println(client.getAllProductsById(List.of(1, 3,2 )));
 	}
 }

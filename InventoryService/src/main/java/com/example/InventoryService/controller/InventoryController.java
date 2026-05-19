@@ -4,6 +4,7 @@ import com.example.InventoryService.dto.OrderRequestDto;
 import com.example.InventoryService.dto.ProductDto;
 import com.example.InventoryService.entity.Product;
 import com.example.InventoryService.service.InventoryService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/inventory")
 public class InventoryController {
@@ -28,7 +30,15 @@ public class InventoryController {
 
     @PutMapping("/update-inventory")
     public ResponseEntity<Void> updateStock(@RequestBody List<OrderRequestDto> orderRequestDtoList) {
+        log.info("Updating stock");
         service.updateStock(orderRequestDtoList);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/restore-inventory")
+    public ResponseEntity<Void> restoreStock(@RequestBody List<OrderRequestDto> orderRequestDtoList) {
+        log.info("Re-stocking");
+        service.restoreInventory(orderRequestDtoList);
         return ResponseEntity.ok().build();
     }
 
@@ -49,6 +59,7 @@ public class InventoryController {
 
     @PostMapping("/all/by-id")
     public ResponseEntity<List<Product>> getAllProductsById(@RequestBody Set<Integer> productIdSet) {
+        log.info("Retrieving products by ID");
         return new ResponseEntity<>(service.getAllProductsById(productIdSet), HttpStatus.OK);
     }
 }
