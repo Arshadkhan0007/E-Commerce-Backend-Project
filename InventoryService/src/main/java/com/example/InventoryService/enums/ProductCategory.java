@@ -9,7 +9,7 @@ public enum ProductCategory {
     CLOTHING,
     SPORTS;
 
-    @JsonCreator
+    @JsonCreator // Helps in deserialization
     public static ProductCategory from(String value) {
         return ProductCategory.valueOf(value.toUpperCase());
     }

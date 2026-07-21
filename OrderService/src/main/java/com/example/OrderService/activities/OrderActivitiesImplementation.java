@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-@ActivityImpl(taskQueues = "ORDER_TASK_QUEUE")
+@ActivityImpl(taskQueues = "ORDER_TASK_QUEUE", workers = "order-worker")
 public class OrderActivitiesImplementation implements OrderActivities {
 
     private final InventoryServiceClient inventoryService;

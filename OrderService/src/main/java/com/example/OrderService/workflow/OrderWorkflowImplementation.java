@@ -44,6 +44,7 @@ public class OrderWorkflowImplementation implements OrderWorkflow {
                 .Options
                 .Builder()
                 .setParallelCompensation(false)
+                .setContinueWithError(true)
                 .build());
 
         Order order = Order.builder()

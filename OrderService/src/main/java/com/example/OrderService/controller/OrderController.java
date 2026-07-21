@@ -2,8 +2,11 @@ package com.example.OrderService.controller;
 
 import com.example.OrderService.dto.OrderRequestDto;
 import com.example.OrderService.workflow.OrderWorkflow;
+import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,9 +33,14 @@ public class OrderController {
                 WorkflowOptions.newBuilder()
                         .setTaskQueue("ORDER_TASK_QUEUE")
                         .setWorkflowId(orderId)
+                        .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
                         .build());
-        WorkflowClient.start(orderWorkflow::placeOrder, orderRequestDtoList, orderId);
-        return ResponseEntity.ok("Your order has been initiated");
+        try{
+            WorkflowClient.start(orderWorkflow::placeOrder, orderRequestDtoList, orderId);
+        } catch (WorkflowExecutionAlreadyStarted e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+        }
+        return ResponseEntity.accepted().body("Your order has been initiated");
     }
 
     @PostMapping("/cancel")
